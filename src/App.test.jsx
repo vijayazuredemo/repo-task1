@@ -126,6 +126,68 @@ describe('Task Manager', () => {
   })
 })
 
+describe('duplicate task titles', () => {
+  function checkboxes() {
+    return screen.getAllByRole('checkbox')
+  }
+
+  function deleteButtons(title) {
+    return screen.getAllByRole('button', { name: `Delete ${title}` })
+  }
+
+  it('allows adding the same title more than once as separate tasks', async () => {
+    await setup(['Buy milk', 'Buy milk', 'Buy milk'])
+    expect(visibleTitles()).toEqual(['Buy milk', 'Buy milk', 'Buy milk'])
+    expect(screen.getByText('3 of 3 tasks remaining')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['different case', ['Buy milk', 'BUY MILK'], ['Buy milk', 'BUY MILK']],
+    ['surrounding spaces', ['Buy milk', '  Buy milk  '], ['Buy milk', 'Buy milk']],
+  ])('keeps titles that differ only by %s as separate tasks', async (_label, typed, stored) => {
+    await setup(typed)
+    expect(visibleTitles()).toEqual(stored)
+    expect(screen.getByText('2 of 2 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('completes only the duplicate that was clicked', async () => {
+    const user = await setup(['Buy milk', 'Buy milk'])
+    await user.click(checkboxes()[1])
+    expect(checkboxes()[0]).not.toBeChecked()
+    expect(checkboxes()[1]).toBeChecked()
+    expect(screen.getByText('1 of 2 tasks remaining')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['first', 0, 1],
+    ['second', 1, 0],
+  ])('deletes only the %s duplicate and keeps the other one\'s state', async (_label, deleted, kept) => {
+    const user = await setup(['Buy milk', 'Buy milk'])
+    await user.click(checkboxes()[kept])
+    await user.click(deleteButtons('Buy milk')[deleted])
+    expect(visibleTitles()).toEqual(['Buy milk'])
+    expect(checkboxes()[0]).toBeChecked()
+    expect(screen.getByText('0 of 1 task remaining')).toBeInTheDocument()
+  })
+
+  it('shows every duplicate in search results and acts on only the clicked one', async () => {
+    const user = await setup(['Buy milk', 'Write report', 'buy MILK'])
+    await user.type(screen.getByLabelText('Search tasks'), 'milk')
+    expect(visibleTitles()).toEqual(['Buy milk', 'buy MILK'])
+    await user.click(checkboxes()[0])
+    expect(checkboxes()[0]).toBeChecked()
+    expect(checkboxes()[1]).not.toBeChecked()
+    await user.click(deleteButtons('buy MILK')[0])
+    expect(visibleTitles()).toEqual(['Buy milk'])
+    expect(screen.getByText('1 of 2 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('gives duplicate rows the same accessible name for their Delete buttons', async () => {
+    await setup(['Buy milk', 'Buy milk'])
+    expect(deleteButtons('Buy milk')).toHaveLength(2)
+  })
+})
+
 describe('rejecting invalid task titles', () => {
   const invalidTitles = [
     ['an empty title', ''],
