@@ -172,3 +172,98 @@ describe('rejecting invalid task titles', () => {
     expect(visibleTitles()).toEqual(['Buy milk'])
   })
 })
+
+describe('searching tasks', () => {
+  const titles = ['Buy milk', 'Write REPORT', 'Call Mom', 'Plan team meeting']
+
+  async function search(user, query) {
+    const input = screen.getByLabelText('Search tasks')
+    await user.clear(input)
+    if (query) await user.type(input, query)
+  }
+
+  it.each([
+    ['lowercase query, mixed-case title', 'buy milk', ['Buy milk']],
+    ['uppercase query, mixed-case title', 'BUY MILK', ['Buy milk']],
+    ['lowercase query, uppercase title', 'report', ['Write REPORT']],
+    ['mixed-case query', 'wRiTe RePoRt', ['Write REPORT']],
+    ['lowercase query, capitalized word', 'mom', ['Call Mom']],
+  ])('ignores case: %s', async (_label, query, expected) => {
+    const user = await setup(titles)
+    await search(user, query)
+    expect(visibleTitles()).toEqual(expected)
+  })
+
+  it.each([
+    ['leading spaces', '   milk', ['Buy milk']],
+    ['trailing spaces', 'milk   ', ['Buy milk']],
+    ['leading and trailing spaces', '   milk   ', ['Buy milk']],
+    ['non-breaking spaces', '\u00a0milk\u00a0', ['Buy milk']],
+  ])('ignores %s around the query', async (_label, query, expected) => {
+    const user = await setup(titles)
+    await search(user, query)
+    expect(visibleTitles()).toEqual(expected)
+  })
+
+  it('does not ignore spaces inside the query', async () => {
+    const user = await setup(titles)
+    await search(user, 'buy  milk')
+    expect(visibleTitles()).toEqual([])
+  })
+
+  it.each([
+    ['start of a title', 'Bu', ['Buy milk']],
+    ['end of a title', 'ilk', ['Buy milk']],
+    ['middle of a word', 'ee', ['Plan team meeting']],
+    ['across a space', 'rite rep', ['Write REPORT']],
+    ['a single letter in several titles', 'm', ['Buy milk', 'Call Mom', 'Plan team meeting']],
+  ])('matches part of a title: %s', async (_label, query, expected) => {
+    const user = await setup(titles)
+    await search(user, query)
+    expect(visibleTitles()).toEqual(expected)
+  })
+
+  it('shows every task when the search box is empty', async () => {
+    await setup(titles)
+    expect(screen.getByLabelText('Search tasks')).toHaveValue('')
+    expect(visibleTitles()).toEqual(titles)
+  })
+
+  it('shows every task again after the search is cleared', async () => {
+    const user = await setup(titles)
+    await search(user, 'milk')
+    expect(visibleTitles()).toEqual(['Buy milk'])
+    await search(user, '')
+    expect(visibleTitles()).toEqual(titles)
+  })
+
+  it('treats a spaces-only search as empty', async () => {
+    const user = await setup(titles)
+    await search(user, '     ')
+    expect(visibleTitles()).toEqual(titles)
+    expect(screen.queryByText(/No tasks match/)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['unrelated text', 'xyz', 'xyz'],
+    ['text longer than any title', 'milkshake', 'milkshake'],
+    ['a query with surrounding spaces', '  xyz  ', 'xyz'],
+  ])('shows the no-match message for %s', async (_label, query, shownQuery) => {
+    const user = await setup(titles)
+    await search(user, query)
+    expect(visibleTitles()).toEqual([])
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(`No tasks match "${shownQuery}". Try a different search.`),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps counting all tasks while nothing matches, and recovers when cleared', async () => {
+    const user = await setup(titles)
+    await search(user, 'xyz')
+    expect(screen.getByText('4 of 4 tasks remaining')).toBeInTheDocument()
+    await search(user, '')
+    expect(visibleTitles()).toEqual(titles)
+    expect(screen.queryByText(/No tasks match/)).not.toBeInTheDocument()
+  })
+})
