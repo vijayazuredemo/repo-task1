@@ -63,6 +63,22 @@ describe('Task Manager', () => {
     expect(visibleTitles()).toEqual(['Buy milk', 'Write REPORT', 'Call mom'])
   })
 
+  it('matches non-ASCII titles regardless of case', async () => {
+    const user = await setup(['Straße fegen', 'ΟΔΟΣ καθαρισμός', 'ﬁle taxes', 'CAFE\u0301 order'])
+    const search = screen.getByLabelText('Search tasks')
+    const cases = [
+      ['STRASSE', ['Straße fegen']],
+      ['οδοσ', ['ΟΔΟΣ καθαρισμός']],
+      ['FILE', ['ﬁle taxes']],
+      ['caf\u00e9', ['CAFE\u0301 order']],
+    ]
+    for (const [query, expected] of cases) {
+      await user.clear(search)
+      await user.type(search, query)
+      expect(visibleTitles()).toEqual(expected)
+    }
+  })
+
   it('shows a friendly message when nothing matches', async () => {
     const user = await setup(['Buy milk'])
     await user.type(screen.getByLabelText('Search tasks'), 'xyz')

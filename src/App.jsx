@@ -4,6 +4,10 @@ import TaskList from './components/TaskList.jsx'
 import SearchBox from './components/SearchBox.jsx'
 import './App.css'
 
+function foldCase(text) {
+  return text.normalize('NFC').toUpperCase().toLowerCase()
+}
+
 function App() {
   const [tasks, setTasks] = useState([])
   const [query, setQuery] = useState('')
@@ -27,9 +31,9 @@ function App() {
 
   const remaining = tasks.filter((task) => !task.completed).length
 
-  const normalizedQuery = query.trim().toLowerCase()
+  const normalizedQuery = foldCase(query.trim())
   const visibleTasks = tasks.filter((task) =>
-    task.title.toLowerCase().includes(normalizedQuery),
+    foldCase(task.title).includes(normalizedQuery),
   )
   const emptyMessage =
     tasks.length === 0
