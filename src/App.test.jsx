@@ -125,3 +125,50 @@ describe('Task Manager', () => {
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeChecked()
   })
 })
+
+describe('rejecting invalid task titles', () => {
+  const invalidTitles = [
+    ['an empty title', ''],
+    ['a single space', ' '],
+    ['several spaces', '     '],
+    ['non-breaking spaces', '\u00a0\u00a0'],
+    ['a full-width space', '\u3000'],
+  ]
+  const submitMethods = [
+    ['clicking Add', async (user) => user.click(screen.getByRole('button', { name: 'Add' }))],
+    ['pressing Enter', async (user) => user.type(screen.getByLabelText('New task'), '{Enter}')],
+  ]
+
+  describe.each(submitMethods)('submitted by %s', (_method, submit) => {
+    it.each(invalidTitles)('does not add a task for %s when the list is empty', async (_label, title) => {
+      const user = await setup()
+      if (title) await user.type(screen.getByLabelText('New task'), title)
+      await submit(user)
+
+      expect(visibleTitles()).toEqual([])
+      expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
+      expect(screen.queryByLabelText('Search tasks')).not.toBeInTheDocument()
+    })
+
+    it.each(invalidTitles)('leaves existing tasks unchanged for %s', async (_label, title) => {
+      const user = await setup(['Buy milk', 'Write report'])
+      if (title) await user.type(screen.getByLabelText('New task'), title)
+      await submit(user)
+
+      expect(visibleTitles()).toEqual(['Buy milk', 'Write report'])
+      expect(screen.getAllByRole('listitem')).toHaveLength(2)
+      expect(screen.getByText('2 of 2 tasks remaining')).toBeInTheDocument()
+    })
+  })
+
+  it('still accepts a valid title after an invalid attempt', async () => {
+    const user = await setup()
+    const input = screen.getByLabelText('New task')
+    await user.type(input, '   {Enter}')
+    expect(visibleTitles()).toEqual([])
+
+    await user.clear(input)
+    await user.type(input, 'Buy milk{Enter}')
+    expect(visibleTitles()).toEqual(['Buy milk'])
+  })
+})
