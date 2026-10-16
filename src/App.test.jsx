@@ -32,6 +32,18 @@ describe('Task Manager', () => {
     expect(screen.getByText('1 of 1 task remaining')).toBeInTheDocument()
   })
 
+  it('ignores clicking Add with an empty title', async () => {
+    const user = await setup()
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(visibleTitles()).toEqual([])
+    expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
+  })
+
+  it('trims spaces around a new task title', async () => {
+    await setup(['   Buy milk   '])
+    expect(visibleTitles()).toEqual(['Buy milk'])
+  })
+
   it('marks a task complete and back', async () => {
     const user = await setup(['Buy milk', 'Write report'])
     const checkbox = screen.getByRole('checkbox', { name: 'Buy milk' })
@@ -46,6 +58,14 @@ describe('Task Manager', () => {
     const user = await setup(['Buy milk', 'Write report'])
     await user.click(screen.getByRole('button', { name: 'Delete Buy milk' }))
     expect(visibleTitles()).toEqual(['Write report'])
+  })
+
+  it('shows the empty message again after deleting the last task', async () => {
+    const user = await setup(['Buy milk'])
+    await user.click(screen.getByRole('button', { name: 'Delete Buy milk' }))
+    expect(visibleTitles()).toEqual([])
+    expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Search tasks')).not.toBeInTheDocument()
   })
 
   it('filters tasks by title, ignoring case and surrounding spaces', async () => {
