@@ -172,7 +172,7 @@ describe('rejecting invalid task titles', () => {
     expect(visibleTitles()).toEqual(['Buy milk'])
   })
 })
-\n
+
 describe('searching tasks', () => {
   const titles = ['Buy milk', 'Write REPORT', 'Call Mom', 'Plan team meeting']
 
