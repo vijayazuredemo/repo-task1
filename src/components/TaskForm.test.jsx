@@ -49,3 +49,74 @@ describe('TaskForm', () => {
     expect(input).toHaveValue('    ')
   })
 })
+
+describe('TaskForm validation message', () => {
+  const message = 'Please enter a task title.'
+
+  it('shows no error before the user submits', () => {
+    const { input } = renderForm()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(input).not.toHaveAttribute('aria-describedby')
+  })
+
+  it.each([
+    ['an empty title', ''],
+    ['a whitespace-only title', '   '],
+  ])('explains the problem for %s and links it to the input', async (_label, typed) => {
+    const { onAdd, user, input, addButton } = renderForm()
+    if (typed) await user.type(input, typed)
+    await user.click(addButton)
+
+    expect(onAdd).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAccessibleDescription(message)
+  })
+
+  it('moves focus back to the input after an invalid submit', async () => {
+    const { user, input, addButton } = renderForm()
+    await user.click(addButton)
+    expect(input).toHaveFocus()
+  })
+
+  it('clears the error as soon as the user edits the title', async () => {
+    const { user, input, addButton } = renderForm()
+    await user.click(addButton)
+    await user.type(input, 'B')
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(input).not.toHaveAccessibleDescription()
+  })
+
+  it('accepts the corrected title and shows no error afterwards', async () => {
+    const { onAdd, user, input, addButton } = renderForm()
+    await user.type(input, '   ')
+    await user.click(addButton)
+    await user.clear(input)
+    await user.type(input, 'Buy milk')
+    await user.click(addButton)
+
+    expect(onAdd).toHaveBeenCalledTimes(1)
+    expect(onAdd).toHaveBeenCalledWith('Buy milk')
+    expect(input).toHaveValue('')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('shows the error again on a second invalid attempt', async () => {
+    const { user, input, addButton } = renderForm()
+    await user.click(addButton)
+    await user.type(input, '  ')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await user.click(addButton)
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+  })
+
+  it('never shows an error for a valid submission', async () => {
+    const { user, input, addButton } = renderForm()
+    await user.type(input, 'Write report')
+    await user.click(addButton)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
