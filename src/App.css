@@ -38,6 +38,13 @@ h1 {
   border-radius: 4px;
 }
 
+.task-form select {
+  padding: 8px 6px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
 .task-form input[aria-invalid='true'] {
   border-color: #b91c1c;
 }
@@ -134,9 +141,31 @@ button:hover {
   cursor: pointer;
 }
 
-.task-item.completed span {
+.task-item.completed label span {
   text-decoration: line-through;
   color: #999;
+}
+
+.priority {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.priority-low {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.priority-medium {
+  background: #fff8e1;
+  color: #8d6e00;
+}
+
+.priority-high {
+  background: #ffebee;
+  color: #c62828;
 }
 
 button.delete {

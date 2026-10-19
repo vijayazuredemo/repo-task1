@@ -42,6 +42,17 @@ describe('TaskItem', () => {
     expect(onDelete).toHaveBeenCalledWith('a1')
     expect(onToggle).not.toHaveBeenCalled()
   })
+
+  it('shows the task priority outside the checkbox label', () => {
+    renderItem({ id: 'a1', title: 'Buy milk', priority: 'high', completed: false })
+    expect(screen.getByText('Priority: High')).toHaveClass('priority', 'priority-high')
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeInTheDocument()
+  })
+
+  it('shows no priority badge when the task has no priority', () => {
+    renderItem({ id: 'a1', title: 'Buy milk', completed: false })
+    expect(screen.queryByText(/Priority:/)).not.toBeInTheDocument()
+  })
 })
 
 describe('TaskItem editing', () => {

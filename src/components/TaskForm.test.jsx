@@ -18,21 +18,21 @@ describe('TaskForm', () => {
     await user.type(input, 'Buy milk')
     await user.click(addButton)
     expect(onAdd).toHaveBeenCalledTimes(1)
-    expect(onAdd).toHaveBeenCalledWith('Buy milk')
+    expect(onAdd).toHaveBeenCalledWith('Buy milk', 'medium')
     expect(input).toHaveValue('')
   })
 
   it('submits when Enter is pressed', async () => {
     const { onAdd, user, input } = renderForm()
     await user.type(input, 'Write report{Enter}')
-    expect(onAdd).toHaveBeenCalledWith('Write report')
+    expect(onAdd).toHaveBeenCalledWith('Write report', 'medium')
   })
 
   it('trims spaces around the title', async () => {
     const { onAdd, user, input, addButton } = renderForm()
     await user.type(input, '   Call mom   ')
     await user.click(addButton)
-    expect(onAdd).toHaveBeenCalledWith('Call mom')
+    expect(onAdd).toHaveBeenCalledWith('Call mom', 'medium')
   })
 
   it('does not call onAdd for an empty title', async () => {
@@ -47,6 +47,30 @@ describe('TaskForm', () => {
     await user.click(addButton)
     expect(onAdd).not.toHaveBeenCalled()
     expect(input).toHaveValue('    ')
+  })
+})
+
+describe('TaskForm priority', () => {
+  it('defaults the priority to Medium', () => {
+    renderForm()
+    expect(screen.getByLabelText('Priority')).toHaveValue('medium')
+  })
+
+  it('calls onAdd with the chosen priority and resets it to Medium', async () => {
+    const { onAdd, user, input, addButton } = renderForm()
+    await user.type(input, 'File taxes')
+    await user.selectOptions(screen.getByLabelText('Priority'), 'High')
+    await user.click(addButton)
+    expect(onAdd).toHaveBeenCalledWith('File taxes', 'high')
+    expect(screen.getByLabelText('Priority')).toHaveValue('medium')
+  })
+
+  it('keeps the chosen priority when the title is rejected', async () => {
+    const { onAdd, user, addButton } = renderForm()
+    await user.selectOptions(screen.getByLabelText('Priority'), 'Low')
+    await user.click(addButton)
+    expect(onAdd).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Priority')).toHaveValue('low')
   })
 })
 
@@ -99,7 +123,7 @@ describe('TaskForm validation message', () => {
     await user.click(addButton)
 
     expect(onAdd).toHaveBeenCalledTimes(1)
-    expect(onAdd).toHaveBeenCalledWith('Buy milk')
+    expect(onAdd).toHaveBeenCalledWith('Buy milk', 'medium')
     expect(input).toHaveValue('')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
