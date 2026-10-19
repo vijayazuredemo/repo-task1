@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App.jsx'
@@ -123,6 +123,32 @@ describe('Task Manager', () => {
     await user.clear(screen.getByLabelText('Search tasks'))
     expect(visibleTitles()).toEqual(['Buy milk', 'Call mom', 'Buy eggs'])
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeChecked()
+  })
+})
+
+describe('without crypto.randomUUID (plain HTTP on a non-localhost address)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('still adds, completes and deletes tasks, keeping duplicates separate', async () => {
+    expect(crypto.randomUUID).toBeUndefined()
+    const user = await setup(['Buy milk', 'Buy milk', 'Write report'])
+    expect(visibleTitles()).toEqual(['Buy milk', 'Buy milk', 'Write report'])
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[1])
+    expect(checkboxes[0]).not.toBeChecked()
+    expect(checkboxes[1]).toBeChecked()
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete Buy milk' })[0])
+    expect(visibleTitles()).toEqual(['Buy milk', 'Write report'])
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeChecked()
+    expect(screen.getByText('1 of 2 tasks remaining')).toBeInTheDocument()
   })
 })
 
