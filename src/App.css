@@ -25,6 +25,7 @@ h1 {
 
 .task-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
@@ -35,6 +36,17 @@ h1 {
   font-size: 1rem;
   border: 1px solid #ccc;
   border-radius: 4px;
+}
+
+.task-form input[aria-invalid='true'] {
+  border-color: #b91c1c;
+}
+
+.form-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.9rem;
 }
 
 button {

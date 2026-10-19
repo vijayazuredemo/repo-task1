@@ -302,6 +302,7 @@ describe('rejecting invalid task titles', () => {
       expect(visibleTitles()).toEqual([])
       expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
       expect(screen.queryByLabelText('Search tasks')).not.toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent('Please enter a task title.')
     })
 
     it.each(invalidTitles)('leaves existing tasks unchanged for %s', async (_label, title) => {
@@ -312,6 +313,7 @@ describe('rejecting invalid task titles', () => {
       expect(visibleTitles()).toEqual(['Buy milk', 'Write report'])
       expect(screen.getAllByRole('listitem')).toHaveLength(2)
       expect(screen.getByText('2 of 2 tasks remaining')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent('Please enter a task title.')
     })
   })
 
@@ -324,6 +326,54 @@ describe('rejecting invalid task titles', () => {
     await user.clear(input)
     await user.type(input, 'Buy milk{Enter}')
     expect(visibleTitles()).toEqual(['Buy milk'])
+  })
+})
+
+describe('recovering after an invalid task title', () => {
+  const message = 'Please enter a task title.'
+
+  it('shows an accessible error, then adds the task once the title is corrected', async () => {
+    const user = await setup()
+    const input = screen.getByLabelText('New task')
+
+    await user.type(input, '   {Enter}')
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAccessibleDescription(message)
+    expect(input).toHaveFocus()
+
+    await user.clear(input)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await user.type(input, 'Buy milk')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(visibleTitles()).toEqual(['Buy milk'])
+    expect(screen.getByText('1 of 1 task remaining')).toBeInTheDocument()
+    expect(input).toHaveValue('')
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps existing tasks and their state through an invalid attempt and recovery', async () => {
+    const user = await setup(['Buy milk', 'Write report'])
+    await user.click(screen.getByRole('checkbox', { name: 'Write report' }))
+
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(visibleTitles()).toEqual(['Buy milk', 'Write report'])
+
+    await user.type(screen.getByLabelText('New task'), 'Call mom{Enter}')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(visibleTitles()).toEqual(['Buy milk', 'Write report', 'Call mom'])
+    expect(screen.getByRole('checkbox', { name: 'Write report' })).toBeChecked()
+    expect(screen.getByText('2 of 3 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('does not show the error while searching or after valid adds', async () => {
+    const user = await setup(['Buy milk'])
+    await user.type(screen.getByLabelText('Search tasks'), 'zzz')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('No tasks match "zzz". Try a different search.')).toBeInTheDocument()
   })
 })
 
