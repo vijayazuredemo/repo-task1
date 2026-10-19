@@ -38,7 +38,7 @@ function TaskItem({ task, onToggle, onDelete, onEdit }) {
       inputRef.current.focus()
       return
     }
-    onEdit(task.id, draft)
+    onEdit(task.id, trimmed)
     stopEditing()
   }
 
