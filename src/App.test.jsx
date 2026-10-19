@@ -313,6 +313,116 @@ describe('filtering by status', () => {
   })
 })
 
+describe('sorting tasks', () => {
+  function chooseSort(user, label) {
+    return user.selectOptions(screen.getByLabelText('Sort by'), label)
+  }
+
+  function rows() {
+    return screen.getAllByRole('checkbox').map((box) => [box.parentElement.textContent, box.checked])
+  }
+
+  const added = ['Write report', 'buy milk', 'Call mom', 'Apple pie']
+  const byTitle = ['Apple pie', 'buy milk', 'Call mom', 'Write report']
+
+  it('has no sort control on an empty list, and hides it again when the list empties', async () => {
+    const user = await setup()
+    expect(screen.queryByLabelText('Sort by')).not.toBeInTheDocument()
+    expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+    await chooseSort(user, 'Title (A–Z)')
+    expect(visibleTitles()).toEqual(['Buy milk'])
+
+    await user.click(screen.getByRole('button', { name: 'Delete Buy milk' }))
+    expect(screen.queryByLabelText('Sort by')).not.toBeInTheDocument()
+    expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
+  })
+
+  it('shows tasks in the order they were added by default', async () => {
+    await setup(added)
+    expect(screen.getByLabelText('Sort by')).toHaveValue('added')
+    expect(visibleTitles()).toEqual(added)
+  })
+
+  it('sorts by title A–Z ignoring upper and lower case', async () => {
+    const user = await setup(added)
+    await chooseSort(user, 'Title (A–Z)')
+    expect(visibleTitles()).toEqual(byTitle)
+  })
+
+  it('restores the original order and states when switching back to Order added', async () => {
+    const user = await setup(added)
+    await user.click(screen.getByRole('checkbox', { name: 'Call mom' }))
+
+    await chooseSort(user, 'Title (A–Z)')
+    await chooseSort(user, 'Order added')
+    expect(rows()).toEqual([
+      ['Write report', false],
+      ['buy milk', false],
+      ['Call mom', true],
+      ['Apple pie', false],
+    ])
+    expect(screen.getByText('3 of 4 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('keeps equal titles in the order they were added', async () => {
+    const user = await setup(['Buy milk', 'Apple', 'BUY MILK', 'Buy milk'])
+    await user.click(screen.getAllByRole('checkbox', { name: 'Buy milk' })[0])
+
+    await chooseSort(user, 'Title (A–Z)')
+    expect(rows()).toEqual([
+      ['Apple', false],
+      ['Buy milk', true],
+      ['BUY MILK', false],
+      ['Buy milk', false],
+    ])
+
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete Buy milk' })
+    await user.click(deleteButtons[1])
+    await chooseSort(user, 'Order added')
+    expect(rows()).toEqual([
+      ['Buy milk', true],
+      ['Apple', false],
+      ['BUY MILK', false],
+    ])
+  })
+
+  it('places new and edited tasks in title order while sorted', async () => {
+    const user = await setup(added)
+    await chooseSort(user, 'Title (A–Z)')
+
+    await user.type(screen.getByLabelText('New task'), 'Dentist{Enter}')
+    expect(visibleTitles()).toEqual(['Apple pie', 'buy milk', 'Call mom', 'Dentist', 'Write report'])
+
+    await user.click(screen.getByRole('button', { name: 'Edit Write report' }))
+    const input = screen.getByLabelText('Edit title for Write report')
+    await user.clear(input)
+    await user.type(input, 'Answer email{Enter}')
+    expect(visibleTitles()).toEqual(['Answer email', 'Apple pie', 'buy milk', 'Call mom', 'Dentist'])
+
+    await chooseSort(user, 'Order added')
+    expect(visibleTitles()).toEqual(['Answer email', 'buy milk', 'Call mom', 'Apple pie', 'Dentist'])
+  })
+
+  it('sorts only the tasks left after filtering and searching', async () => {
+    const user = await setup(added)
+    await user.click(screen.getByRole('checkbox', { name: 'Write report' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Apple pie' }))
+    await chooseSort(user, 'Title (A–Z)')
+
+    await user.click(screen.getByRole('button', { name: 'Completed' }))
+    expect(visibleTitles()).toEqual(['Apple pie', 'Write report'])
+
+    await user.click(screen.getByRole('button', { name: 'Active' }))
+    await user.type(screen.getByLabelText('Search tasks'), 'L')
+    expect(visibleTitles()).toEqual(['buy milk', 'Call mom'])
+
+    await user.type(screen.getByLabelText('Search tasks'), 'zz')
+    expect(screen.getByText('No active tasks match "Lzz". Try a different search.')).toBeInTheDocument()
+  })
+})
+
 describe('deleting tasks', () => {
   const titles = ['Buy milk', 'Write report', 'Call mom']
 
