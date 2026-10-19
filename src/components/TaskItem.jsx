@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { priorityLabel } from '../priorities.js'
 
 const EMPTY_TITLE_ERROR = 'Please enter a task title.'
 
@@ -10,6 +11,7 @@ function TaskItem({ task, onToggle, onDelete, onEdit }) {
   const editButtonRef = useRef(null)
   const restoreFocus = useRef(false)
   const errorId = useId()
+  const priority = priorityLabel(task.priority)
 
   useEffect(() => {
     if (!isEditing && restoreFocus.current) {
@@ -91,6 +93,9 @@ function TaskItem({ task, onToggle, onDelete, onEdit }) {
         <span>{task.title}</span>
       </label>
       <div className="task-actions">
+        {priority && (
+          <span className={`priority priority-${task.priority}`}>Priority: {priority}</span>
+        )}
         <button ref={editButtonRef} className="edit" onClick={startEditing} aria-label={`Edit ${task.title}`}>
           Edit
         </button>

@@ -27,8 +27,8 @@ function App() {
   const [sort, setSort] = useState('added')
   const nextId = useRef(1)
 
-  function addTask(title) {
-    const newTask = { id: nextId.current++, title, completed: false }
+  function addTask(title, priority) {
+    const newTask = { id: nextId.current++, title, priority, completed: false }
     setTasks((prev) => [...prev, newTask])
   }
 

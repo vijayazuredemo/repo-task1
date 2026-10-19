@@ -423,6 +423,48 @@ describe('sorting tasks', () => {
   })
 })
 
+describe('task priority', () => {
+  async function addWithPriority(user, title, priority) {
+    await user.type(screen.getByLabelText('New task'), title)
+    await user.selectOptions(screen.getByLabelText('Priority'), priority)
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+  }
+
+  function priorities() {
+    return screen.getAllByRole('listitem').map((item) => [
+      item.querySelector('label span').textContent,
+      item.querySelector('.priority').textContent,
+    ])
+  }
+
+  it('gives new tasks Medium priority by default', async () => {
+    await setup(['Buy milk'])
+    expect(priorities()).toEqual([['Buy milk', 'Priority: Medium']])
+  })
+
+  it('stores the priority chosen for each task', async () => {
+    const user = await setup()
+    await addWithPriority(user, 'File taxes', 'High')
+    await addWithPriority(user, 'Water plants', 'Low')
+    expect(priorities()).toEqual([
+      ['File taxes', 'Priority: High'],
+      ['Water plants', 'Priority: Low'],
+    ])
+  })
+
+  it('keeps the priority when a task is completed or renamed', async () => {
+    const user = await setup()
+    await addWithPriority(user, 'File taxes', 'High')
+    await user.click(screen.getByRole('checkbox', { name: 'File taxes' }))
+    await user.click(screen.getByRole('button', { name: 'Edit File taxes' }))
+    const input = screen.getByLabelText('Edit title for File taxes')
+    await user.clear(input)
+    await user.type(input, 'File taxes early{Enter}')
+    expect(priorities()).toEqual([['File taxes early', 'Priority: High']])
+    expect(screen.getByRole('checkbox', { name: 'File taxes early' })).toBeChecked()
+  })
+})
+
 describe('deleting tasks', () => {
   const titles = ['Buy milk', 'Write report', 'Call mom']
 

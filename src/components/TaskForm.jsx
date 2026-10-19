@@ -1,9 +1,11 @@
 import { useId, useRef, useState } from 'react'
+import { DEFAULT_PRIORITY, PRIORITIES } from '../priorities.js'
 
 const EMPTY_TITLE_ERROR = 'Please enter a task title.'
 
 function TaskForm({ onAdd }) {
   const [title, setTitle] = useState('')
+  const [priority, setPriority] = useState(DEFAULT_PRIORITY)
   const [error, setError] = useState('')
   const inputRef = useRef(null)
   const errorId = useId()
@@ -16,8 +18,9 @@ function TaskForm({ onAdd }) {
       inputRef.current.focus()
       return
     }
-    onAdd(trimmed)
+    onAdd(trimmed, priority)
     setTitle('')
+    setPriority(DEFAULT_PRIORITY)
     setError('')
   }
 
@@ -38,6 +41,17 @@ function TaskForm({ onAdd }) {
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={error ? errorId : undefined}
       />
+      <select
+        value={priority}
+        onChange={(event) => setPriority(event.target.value)}
+        aria-label="Priority"
+      >
+        {PRIORITIES.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
       <button type="submit">Add</button>
       {error && (
         <p id={errorId} className="form-error" role="alert">
