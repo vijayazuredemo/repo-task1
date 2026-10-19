@@ -126,6 +126,72 @@ describe('Task Manager', () => {
   })
 })
 
+describe('deleting tasks', () => {
+  const titles = ['Buy milk', 'Write report', 'Call mom']
+
+  function taskStates() {
+    return screen.queryAllByRole('listitem').map((item) => ({
+      title: item.querySelector('span').textContent,
+      completed: item.querySelector('input[type="checkbox"]').checked,
+    }))
+  }
+
+  async function deleteTask(user, title) {
+    await user.click(screen.getByRole('button', { name: `Delete ${title}` }))
+  }
+
+  it.each([
+    ['first', 'Buy milk', '1 of 2 tasks remaining'],
+    ['middle', 'Write report', '2 of 2 tasks remaining'],
+    ['last', 'Call mom', '1 of 2 tasks remaining'],
+  ])('deletes the %s task and leaves the others unchanged', async (_label, title, summary) => {
+    const user = await setup(titles)
+    await user.click(screen.getByRole('checkbox', { name: 'Write report' }))
+    const before = taskStates()
+
+    await deleteTask(user, title)
+
+    expect(taskStates()).toEqual(before.filter((task) => task.title !== title))
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByText(summary)).toBeInTheDocument()
+  })
+
+  it('removes exactly one task per click', async () => {
+    const user = await setup(titles)
+    await deleteTask(user, 'Write report')
+    expect(visibleTitles()).toEqual(['Buy milk', 'Call mom'])
+    await deleteTask(user, 'Buy milk')
+    expect(visibleTitles()).toEqual(['Call mom'])
+  })
+
+  it('returns to the empty state after deleting the final task', async () => {
+    const user = await setup(['Buy milk'])
+    await user.click(screen.getByRole('checkbox', { name: 'Buy milk' }))
+    await deleteTask(user, 'Buy milk')
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Search tasks')).not.toBeInTheDocument()
+    expect(screen.queryByText(/remaining/)).not.toBeInTheDocument()
+  })
+
+  it('returns to the empty state after deleting every task one by one', async () => {
+    const user = await setup(titles)
+    for (const title of ['Write report', 'Call mom', 'Buy milk']) {
+      await deleteTask(user, title)
+    }
+    expect(visibleTitles()).toEqual([])
+    expect(screen.getByText('No tasks yet. Add one above.')).toBeInTheDocument()
+  })
+
+  it('can add a new task after deleting the final task', async () => {
+    const user = await setup(['Buy milk'])
+    await deleteTask(user, 'Buy milk')
+    await user.type(screen.getByLabelText('New task'), 'Call mom{Enter}')
+    expect(taskStates()).toEqual([{ title: 'Call mom', completed: false }])
+    expect(screen.getByText('1 of 1 task remaining')).toBeInTheDocument()
+  })
+})
+
 describe('duplicate task titles', () => {
   function checkboxes() {
     return screen.getAllByRole('checkbox')
