@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import TaskForm from './components/TaskForm.jsx'
 import TaskList from './components/TaskList.jsx'
 import SearchBox from './components/SearchBox.jsx'
@@ -11,9 +11,10 @@ function foldCase(text) {
 function App() {
   const [tasks, setTasks] = useState([])
   const [query, setQuery] = useState('')
+  const nextId = useRef(1)
 
   function addTask(title) {
-    const newTask = { id: crypto.randomUUID(), title, completed: false }
+    const newTask = { id: nextId.current++, title, completed: false }
     setTasks((prev) => [...prev, newTask])
   }
 
