@@ -1,6 +1,6 @@
 import TaskItem from './TaskItem.jsx'
 
-function TaskList({ tasks, emptyMessage, onToggle, onDelete }) {
+function TaskList({ tasks, emptyMessage, onToggle, onDelete, onEdit }) {
   if (tasks.length === 0) {
     return <p className="empty">{emptyMessage}</p>
   }
@@ -8,7 +8,13 @@ function TaskList({ tasks, emptyMessage, onToggle, onDelete }) {
   return (
     <ul className="task-list">
       {tasks.map((task) => (
-        <TaskItem key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />
+        <TaskItem
+          key={task.id}
+          task={task}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          onEdit={onEdit}
+        />
       ))}
     </ul>
   )

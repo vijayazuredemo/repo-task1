@@ -26,6 +26,12 @@ function App() {
     )
   }
 
+  function editTask(id, title) {
+    setTasks((prev) =>
+      prev.map((task) => (task.id === id ? { ...task, title } : task)),
+    )
+  }
+
   function deleteTask(id) {
     setTasks((prev) => prev.filter((task) => task.id !== id))
   }
@@ -51,6 +57,7 @@ function App() {
         emptyMessage={emptyMessage}
         onToggle={toggleTask}
         onDelete={deleteTask}
+        onEdit={editTask}
       />
       {tasks.length > 0 && (
         <p className="summary">
