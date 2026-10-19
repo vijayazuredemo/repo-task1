@@ -14,7 +14,7 @@ async function setup(titles = []) {
 }
 
 function visibleTitles() {
-  return screen.queryAllByRole('listitem').map((item) => item.textContent.replace('Delete', ''))
+  return screen.queryAllByRole('listitem').map((item) => item.querySelector('label span')?.textContent ?? null)
 }
 
 describe('Task Manager', () => {
@@ -419,5 +419,102 @@ describe('searching tasks', () => {
     await search(user, '')
     expect(visibleTitles()).toEqual(titles)
     expect(screen.queryByText(/No tasks match/)).not.toBeInTheDocument()
+  })
+})
+
+describe('editing tasks', () => {
+  const message = 'Please enter a task title.'
+
+  async function editTitle(user, currentTitle, newText, submit = '{Enter}') {
+    await user.click(screen.getByRole('button', { name: `Edit ${currentTitle}` }))
+    const input = screen.getByRole('textbox', { name: `Edit title for ${currentTitle}` })
+    await user.clear(input)
+    await user.type(input, `${newText}${submit}`)
+    return input
+  }
+
+  it('saves a new title and leaves every other task unchanged', async () => {
+    const user = await setup(['Buy milk', 'Write report', 'Call mom'])
+    await user.click(screen.getByRole('checkbox', { name: 'Write report' }))
+
+    await editTitle(user, 'Write report', '  Write final report  ', '')
+    await user.click(screen.getByRole('button', { name: 'Save Write report' }))
+
+    expect(visibleTitles()).toEqual(['Buy milk', 'Write final report', 'Call mom'])
+    expect(screen.getByRole('checkbox', { name: 'Write final report' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Call mom' })).not.toBeChecked()
+    expect(screen.getByText('2 of 3 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('saves with the Enter key', async () => {
+    const user = await setup(['Buy milk'])
+    await editTitle(user, 'Buy milk', 'Buy bread')
+    expect(visibleTitles()).toEqual(['Buy bread'])
+  })
+
+  it.each([
+    ['clicking Cancel', async (user) => user.click(screen.getByRole('button', { name: 'Cancel editing Buy milk' }))],
+    ['pressing Escape', async (user) => user.keyboard('{Escape}')],
+  ])('keeps the original title when cancelled by %s', async (_label, cancel) => {
+    const user = await setup(['Buy milk', 'Write report'])
+    await editTitle(user, 'Buy milk', 'Buy bread', '')
+    await cancel(user)
+
+    expect(visibleTitles()).toEqual(['Buy milk', 'Write report'])
+    expect(screen.queryByRole('textbox', { name: /Edit title/ })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['an empty title', ''],
+    ['a single space', ' '],
+    ['several spaces', '     '],
+    ['non-breaking spaces', '\u00a0\u00a0'],
+  ])('rejects %s without changing the task', async (_label, blank) => {
+    const user = await setup(['Buy milk', 'Write report'])
+    const input = await editTitle(user, 'Buy milk', blank)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(visibleTitles()).toEqual(['Buy milk', 'Write report'])
+    expect(screen.getByText('2 of 2 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('recovers after a blank title is corrected', async () => {
+    const user = await setup(['Buy milk'])
+    const input = await editTitle(user, 'Buy milk', '   ')
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+
+    await user.clear(input)
+    await user.type(input, 'Buy oat milk')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save Buy milk' }))
+
+    expect(visibleTitles()).toEqual(['Buy oat milk'])
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('edits only the chosen task when titles are duplicated', async () => {
+    const user = await setup(['Buy milk', 'Buy milk'])
+    await user.click(screen.getAllByRole('button', { name: 'Edit Buy milk' })[1])
+    const input = screen.getByRole('textbox', { name: 'Edit title for Buy milk' })
+    await user.clear(input)
+    await user.type(input, 'Buy eggs{Enter}')
+
+    expect(visibleTitles()).toEqual(['Buy milk', 'Buy eggs'])
+  })
+
+  it('searches by the edited title', async () => {
+    const user = await setup(['Buy milk', 'Write report'])
+    await editTitle(user, 'Buy milk', 'Call mom')
+    await user.type(screen.getByLabelText('Search tasks'), 'MOM')
+    expect(visibleTitles()).toEqual(['Call mom'])
+
+    await user.clear(screen.getByLabelText('Search tasks'))
+    await user.type(screen.getByLabelText('Search tasks'), 'milk')
+    expect(screen.getByText('No tasks match "milk". Try a different search.')).toBeInTheDocument()
   })
 })

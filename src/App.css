@@ -100,3 +100,56 @@ button.delete:hover {
   text-align: center;
   color: #666;
 }
+
+.task-actions {
+  display: flex;
+  gap: 6px;
+}
+
+button.edit {
+  background: #4b5563;
+  padding: 6px 10px;
+}
+
+button.edit:hover {
+  background: #374151;
+}
+
+.edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.edit-form input {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.edit-form input[aria-invalid='true'] {
+  border-color: #b91c1c;
+}
+
+.edit-form button {
+  padding: 6px 10px;
+}
+
+button.secondary {
+  background: #e5e7eb;
+  color: #222;
+}
+
+button.secondary:hover {
+  background: #d1d5db;
+}
+
+.edit-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
