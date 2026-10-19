@@ -72,6 +72,31 @@ button:hover {
   border-radius: 4px;
 }
 
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.filter-bar button {
+  padding: 6px 12px;
+  background: #e5e7eb;
+  color: #222;
+}
+
+.filter-bar button:hover {
+  background: #d1d5db;
+}
+
+.filter-bar button[aria-pressed='true'] {
+  background: #2563eb;
+  color: #fff;
+}
+
+.filter-bar button[aria-pressed='true']:hover {
+  background: #1d4ed8;
+}
+
 .task-list {
   list-style: none;
   margin: 0;

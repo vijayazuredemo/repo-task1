@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App.jsx'
 
@@ -149,6 +149,167 @@ describe('without crypto.randomUUID (plain HTTP on a non-localhost address)', ()
     expect(visibleTitles()).toEqual(['Buy milk', 'Write report'])
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeChecked()
     expect(screen.getByText('1 of 2 tasks remaining')).toBeInTheDocument()
+  })
+})
+
+describe('filtering by status', () => {
+  const titles = ['Buy milk', 'Write report', 'Call mom', 'Plan meeting']
+
+  async function setupMixed() {
+    const user = await setup(titles)
+    await user.click(screen.getByRole('checkbox', { name: 'Write report' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Plan meeting' }))
+    return user
+  }
+
+  function chooseFilter(user, name) {
+    return user.click(within(screen.getByRole('group', { name: 'Filter tasks' })).getByRole('button', { name }))
+  }
+
+  function pressedFilters() {
+    return within(screen.getByRole('group', { name: 'Filter tasks' }))
+      .getAllByRole('button')
+      .filter((button) => button.getAttribute('aria-pressed') === 'true')
+      .map((button) => button.textContent)
+  }
+
+  function snapshot() {
+    return screen.getAllByRole('checkbox').map((box) => [box.parentElement.textContent, box.checked])
+  }
+
+  const original = [
+    ['Buy milk', false],
+    ['Write report', true],
+    ['Call mom', false],
+    ['Plan meeting', true],
+  ]
+
+  it('is hidden with no tasks and starts on All once a task exists', async () => {
+    const user = await setup()
+    expect(screen.queryByRole('group', { name: 'Filter tasks' })).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+    expect(pressedFilters()).toEqual(['All'])
+  })
+
+  it.each([
+    ['All', titles],
+    ['Active', ['Buy milk', 'Call mom']],
+    ['Completed', ['Write report', 'Plan meeting']],
+  ])('%s shows the matching tasks and keeps the summary counting every task', async (filter, expected) => {
+    const user = await setupMixed()
+    await chooseFilter(user, filter)
+
+    expect(visibleTitles()).toEqual(expected)
+    expect(pressedFilters()).toEqual([filter])
+    expect(screen.getByText('2 of 4 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('moves between every filter and restores the original tasks on All', async () => {
+    const user = await setupMixed()
+    const steps = [
+      ['Active', ['Buy milk', 'Call mom']],
+      ['Completed', ['Write report', 'Plan meeting']],
+      ['All', titles],
+      ['Completed', ['Write report', 'Plan meeting']],
+      ['Active', ['Buy milk', 'Call mom']],
+      ['Active', ['Buy milk', 'Call mom']],
+      ['All', titles],
+    ]
+    for (const [filter, expected] of steps) {
+      await chooseFilter(user, filter)
+      expect(visibleTitles()).toEqual(expected)
+      expect(pressedFilters()).toEqual([filter])
+    }
+    expect(snapshot()).toEqual(original)
+  })
+
+  it('moves a task between Active and Completed when it is ticked or unticked', async () => {
+    const user = await setupMixed()
+
+    await chooseFilter(user, 'Active')
+    await user.click(screen.getByRole('checkbox', { name: 'Buy milk' }))
+    expect(visibleTitles()).toEqual(['Call mom'])
+
+    await chooseFilter(user, 'Completed')
+    expect(visibleTitles()).toEqual(['Buy milk', 'Write report', 'Plan meeting'])
+    await user.click(screen.getByRole('checkbox', { name: 'Write report' }))
+    expect(visibleTitles()).toEqual(['Buy milk', 'Plan meeting'])
+
+    await chooseFilter(user, 'All')
+    expect(snapshot()).toEqual([
+      ['Buy milk', true],
+      ['Write report', false],
+      ['Call mom', false],
+      ['Plan meeting', true],
+    ])
+    expect(screen.getByText('2 of 4 tasks remaining')).toBeInTheDocument()
+  })
+
+  it('deletes only the chosen task while filtered', async () => {
+    const user = await setupMixed()
+    await chooseFilter(user, 'Completed')
+    await user.click(screen.getByRole('button', { name: 'Delete Write report' }))
+    expect(visibleTitles()).toEqual(['Plan meeting'])
+
+    await chooseFilter(user, 'All')
+    expect(snapshot()).toEqual([original[0], original[2], original[3]])
+  })
+
+  it('shows a friendly message when a filter has no tasks', async () => {
+    const user = await setup(['Buy milk', 'Call mom'])
+
+    await chooseFilter(user, 'Completed')
+    expect(screen.getByText('No completed tasks.')).toBeInTheDocument()
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+
+    await chooseFilter(user, 'Active')
+    await user.click(screen.getByRole('checkbox', { name: 'Buy milk' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Call mom' }))
+    expect(screen.getByText('No active tasks.')).toBeInTheDocument()
+
+    await chooseFilter(user, 'All')
+    expect(visibleTitles()).toEqual(['Buy milk', 'Call mom'])
+  })
+
+  it('combines with search and keeps both when switching', async () => {
+    const user = await setupMixed()
+    await user.type(screen.getByLabelText('Search tasks'), 'M')
+    expect(visibleTitles()).toEqual(['Buy milk', 'Call mom', 'Plan meeting'])
+
+    await chooseFilter(user, 'Active')
+    expect(visibleTitles()).toEqual(['Buy milk', 'Call mom'])
+    await chooseFilter(user, 'Completed')
+    expect(visibleTitles()).toEqual(['Plan meeting'])
+    expect(screen.getByLabelText('Search tasks')).toHaveValue('M')
+
+    await user.clear(screen.getByLabelText('Search tasks'))
+    expect(visibleTitles()).toEqual(['Write report', 'Plan meeting'])
+    expect(pressedFilters()).toEqual(['Completed'])
+  })
+
+  it.each([
+    ['All', 'zzz', 'No tasks match "zzz". Try a different search.'],
+    ['Active', 'report', 'No active tasks match "report". Try a different search.'],
+    ['Completed', 'milk', 'No completed tasks match "milk". Try a different search.'],
+  ])('names the filter in the no-match message (%s)', async (filter, query, message) => {
+    const user = await setupMixed()
+    await chooseFilter(user, filter)
+    await user.type(screen.getByLabelText('Search tasks'), query)
+    expect(screen.getByText(message)).toBeInTheDocument()
+  })
+
+  it('keeps a task added under Completed and shows it under All and Active', async () => {
+    const user = await setupMixed()
+    await chooseFilter(user, 'Completed')
+    await user.type(screen.getByLabelText('New task'), 'Water plants{Enter}')
+
+    expect(visibleTitles()).toEqual(['Write report', 'Plan meeting'])
+    expect(screen.getByText('3 of 5 tasks remaining')).toBeInTheDocument()
+    await chooseFilter(user, 'Active')
+    expect(visibleTitles()).toEqual(['Buy milk', 'Call mom', 'Water plants'])
+    await chooseFilter(user, 'All')
+    expect(visibleTitles()).toEqual([...titles, 'Water plants'])
   })
 })
 

@@ -2,7 +2,14 @@ import { useRef, useState } from 'react'
 import TaskForm from './components/TaskForm.jsx'
 import TaskList from './components/TaskList.jsx'
 import SearchBox from './components/SearchBox.jsx'
+import FilterBar from './components/FilterBar.jsx'
 import './App.css'
+
+const STATUS_FILTERS = {
+  all: () => true,
+  active: (task) => !task.completed,
+  completed: (task) => task.completed,
+}
 
 function foldCase(text) {
   return text.normalize('NFC').toUpperCase().toLowerCase()
@@ -11,6 +18,7 @@ function foldCase(text) {
 function App() {
   const [tasks, setTasks] = useState([])
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('all')
   const nextId = useRef(1)
 
   function addTask(title) {
@@ -38,20 +46,28 @@ function App() {
 
   const remaining = tasks.filter((task) => !task.completed).length
 
-  const normalizedQuery = foldCase(query.trim())
-  const visibleTasks = tasks.filter((task) =>
-    foldCase(task.title).includes(normalizedQuery),
+  const trimmedQuery = query.trim()
+  const normalizedQuery = foldCase(trimmedQuery)
+  const visibleTasks = tasks.filter(
+    (task) =>
+      STATUS_FILTERS[filter](task) && foldCase(task.title).includes(normalizedQuery),
   )
-  const emptyMessage =
-    tasks.length === 0
-      ? 'No tasks yet. Add one above.'
-      : `No tasks match "${query.trim()}". Try a different search.`
+  const filterWord = filter === 'all' ? '' : `${filter} `
+  let emptyMessage
+  if (tasks.length === 0) {
+    emptyMessage = 'No tasks yet. Add one above.'
+  } else if (trimmedQuery) {
+    emptyMessage = `No ${filterWord}tasks match "${trimmedQuery}". Try a different search.`
+  } else {
+    emptyMessage = `No ${filterWord}tasks.`
+  }
 
   return (
     <main className="app">
       <h1>Task Manager</h1>
       <TaskForm onAdd={addTask} />
       {tasks.length > 0 && <SearchBox query={query} onChange={setQuery} />}
+      {tasks.length > 0 && <FilterBar filter={filter} onChange={setFilter} />}
       <TaskList
         tasks={visibleTasks}
         emptyMessage={emptyMessage}
